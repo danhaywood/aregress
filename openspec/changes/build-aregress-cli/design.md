@@ -66,6 +66,12 @@ This keeps both instances in lockstep before comparison. "Wait for completion" m
 ```
 The same path is used for both app-a and app-b (different base URLs, same path).
 
+### Shell launcher script
+
+**Decision**: Provide an `aregress` shell script at the repo root that wraps `java -jar`.
+
+The repo uses SDKMAN; the shell's default Java may be older than 17. The script checks the major version and exits with a helpful error if it's too old, so users aren't confronted with a cryptic JVM error. All arguments are forwarded verbatim to the JAR.
+
 ## Risks / Trade-offs
 
 - **Selector fragility** → Causeway Wicket and Vaadin generate dynamic HTML; selectors may break on app upgrades. Mitigation: encapsulate selectors in page objects so updates are localised.
