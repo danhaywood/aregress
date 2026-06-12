@@ -1,0 +1,197 @@
+= aregress
+
+Automated regression testing CLI for Apache Causeway.
+
+Drives two Causeway app instances via Playwright, replaying recorded commands step-by-step,
+and after each command queries the `cfct` database-comparison tool's automation REST API —
+stopping on the first detected divergence.
+
+Built as a Spring Boot 4.x CLI (no web server): Picocli still provides the command-line, and
+configuration can come from `application.yml` / environment variables / system properties as well
+as CLI options.
+
+== Prerequisites
+
+* Java 17+
+* Maven 3.x
+* Playwright browser binaries (one-time setup):
++
+[source,bash]
+----
+mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install chromium"
+----
+
+== Build
+
+[source,bash]
+----
+mvn package
+----
+
+Produces `target/aregress-1.0-SNAPSHOT.jar` (a Spring Boot executable jar, ~200MB).
+
+== Usage
+
+The `aregress` shell script at the repo root wraps the JAR and checks
+that Java 17+ is on `PATH` before running:
+
+[source,bash]
+----
+./aregress --file <file> [options]
+----
+
+Or invoke the JAR directly:
+
+[source,bash]
+----
+java -jar target/aregress-1.0-SNAPSHOT.jar --file <file> [options]
+----
+
+NOTE: If your shell's `java` is older than 17, set `JAVA_HOME` first, eg using sdkman.
+
+
+=== Parameter options
+
+The following parameter options are required:
+
+* `--file`
++
+A recording (exported by `CommandExportManager`) to import into both apps via REST.
+
+`--username`
++
+Username for the Causeway app login used for both app-a and app-b.
+Also used as the Basic-Auth user for uploading the file import.
+
+* `--password`
++
+Password for the Causeway app login.
+Either provide the password as an argument, or leave blank (in which case will be prompted for interactively)
+
+* `--cfct-password`
++
+HTTP Basic-Auth secret for the `cfct` tool's REST API.
+Either provide the password as an argument, or leave blank (in which case will be prompted for interactively)
+
+The following parameter options are not required, have defaults:
+
+* `--app-a`
++
+Base URL for app-a.
+Defaults to `http://localhost:8080`.
+
+* `--app-b`
++
+Base URL for app-b.
+Defaults to `http://localhost:9090`.
+
+`--cfct`
++
+Base URL of the cfct automation REST API.
+Defaults to `http://localhost:10010`
+
+`--cfct-username`
++
+Username for HTTP Basic Auth against the cfct automation API.
+Defaults to `robot`
+
+`--headless`
++
+Run browser headless (for CI).
+Defaults to `false`, ie runs in headed mode.
+
+=== Example
+
+Headed (default) — browser windows visible for failure diagnosis.
+Prompts for the two passwords (not echoed):
+
+[source,bash]
+----
+./aregress -file ~/Downloads/ApplicationUser.2026-06-11T12_23_56.614Z.yml \
+  --username estatio-admin --password --cfct-password
+----
+
+Headless — for CI (pass secrets as args / from a secret store):
+
+[source,bash]
+----
+./aregress -file /tmp/replay.yml \
+  --username "$AREGRESS_USER" --password "$AREGRESS_PASS" --cfct-password "$CFCT_PASS" \
+  --headless
+----
+
+=== Output
+
+----
+[step 1] newLocalUser replayed... OK
+[step 2] updateUsername replayed... OK
+[step 3] lock replayed... FAIL — database divergence: isisExtSecman.ApplicationUser (1 differing row(s))
+----
+
+Each step is reported with the command's member name. Two failure modes are distinguished:
+
+* `replay FAILED on app-a`
++
+the command failed to execute on the first (reference) Causeway instance.
+
+* `replay FAILED on app-b`
++
+the command failed to execute on the second (candidate) Causeway instance.
+
+* `FAIL — database divergence: <tables>`
++
+the databases diverged after replay (the differing table(s) are named).
+
+Exits code:
+
+* `0` when all commands replay and compare cleanly
+* `1` on the first regression (replay failure or database divergence)
+* `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.), and
+* `3` when a command has spawned *background commands* that are still pending.
++
+This does not represent a failure, but does require that the end-user wait for them to complete, then re-run `aregress`.
+It will resume with the still-pending commands.
+
+
+== Configuration
+
+Non-secret settings have built-in defaults (a bundled `application.yml`) and can be overridden the Spring Boot way — by environment variables, system properties, or an external `application.yml` — with CLI options taking highest precedence:
+
+*CLI option → system property → environment variable → bundled `application.yml` → built-in default*
+
+The configuration keys and their defaults are:
+
+[source,yaml]
+.application.yml
+----
+aregress:
+  app-a: http://localhost:8080
+  app-b: http://localhost:9090
+  cfct: http://localhost:10010
+  cfct-username: robot
+  compare:
+    max-attempts: 5
+    retry-delay: "1s"
+----
+
+The `aregress.compare.*` config properties are to manage the race condition that, after replaying a command, `aregress` re-queries `cfct` before the comparison is ready.
+It detects this by checking the `command.interactionId` in `cfct`'s response.
+If the command is never confirmed within the attempts, the run aborts
+with exit `2` rather than trusting a stale comparison.
+
+
+== Before running
+
+. Get the recording into both apps — either import it out-of-band and pass `--timestamp`, or pass `--file <recording>` and let aregress import it via each app's import endpoint (see link:docs/app-import-endpoint.md[docs/app-import-endpoint.md])
+. Ensure `cfct` is running with its automation REST API enabled and connected to both databases
+
+== CI setup
+
+[source,yaml]
+----
+- name: Install Playwright browsers
+  run: mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install chromium"
+
+- name: Run regression
+  run: ./aregress --timestamp $TIMESTAMP --headless
+----
