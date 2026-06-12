@@ -1,14 +1,13 @@
 ## 1. Preconditions
 
-- [ ] 1.1 Confirm the cfct automation API is reachable at the target host: `curl -i -u <user>:<pass> -X POST {cfct}/api/automation/refresh` returns `200` with `status: completed`, and `GET {cfct}/api/automation/comparison.json` returns the comparison JSON.
+- [ ] 1.1 Confirm the cfct automation API is reachable: `curl -i -u <user>:<pass> {cfct}/api/automation/comparison.json` returns `200` with the comparison JSON (the endpoint refreshes server-side first).
 - [ ] 1.2 Confirm the JSON matches the existing `ComparisonResult` fields (`hasDifferences`, `tables[].summary`, `differingRows`).
 
 ## 2. HTTP Client
 
 - [ ] 2.1 Add `ComparisonResult.parse(String json)` overload; have the existing file-based `parse(Path)` delegate to it.
-- [ ] 2.2 Create `CfctClient` (JDK `java.net.http.HttpClient`) constructed with the cfct base URL + Basic-Auth username/password; set `Authorization: Basic …` on every request; use generous timeouts.
-- [ ] 2.3 Implement `CfctClient.refresh()` → `POST /api/automation/refresh`; require `200` and `status == "completed"`; throw a clear error otherwise (optionally log `tableCount`).
-- [ ] 2.4 Implement `CfctClient.latestComparison()` → `GET /api/automation/comparison.json`; require `200`; parse body into `ComparisonResult`; treat non-`200` (incl. `404 not_found`) as an automation error.
+- [ ] 2.2 Create `CfctClient` (JDK `java.net.http.HttpClient`) constructed with the cfct base URL + Basic-Auth username/password; set `Authorization: Basic …` on every request; use a generous timeout (the GET refreshes server-side).
+- [ ] 2.3 Implement `CfctClient.latestComparison()` → `GET /api/automation/comparison.json` (refreshes then returns); require `200`; parse body into `ComparisonResult`; treat non-`200` as an automation error.
 
 ## 3. CLI
 
@@ -18,7 +17,7 @@
 ## 4. Orchestration
 
 - [ ] 4.1 In `Main`, replace the cfct Playwright page with a `CfctClient`; stop opening a third browser page.
-- [ ] 4.2 Per step, after both replays succeed: `cfctClient.refresh()` then `cfctClient.latestComparison()`; keep the existing `hasDifferences` → FAIL (with `describeDifferences()`) / OK logic and logging.
+- [ ] 4.2 Per step, after both replays succeed: `cfctClient.latestComparison()`; keep the existing `hasDifferences` → FAIL (with `describeDifferences()`) / OK logic and logging.
 - [ ] 4.3 Surface automation-API errors as a distinct non-zero exit (separate from a data divergence).
 - [ ] 4.4 Delete `CfctPage` and its Playwright selectors.
 
