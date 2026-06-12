@@ -13,7 +13,8 @@ import java.util.concurrent.Callable;
 @Command(
         name = "aregress",
         mixinStandardHelpOptions = true,
-        description = "Automates regression testing by replaying commands on two Causeway app instances and comparing their databases via cfct."
+        description = "Automates regression testing by replaying commands on two Causeway app instances "
+                + "in lockstep and comparing their databases via cfct after each command."
 )
 public class Main implements Callable<Integer> {
 
@@ -33,6 +34,18 @@ public class Main implements Callable<Integer> {
             description = "Base URL for cfct (default: ${DEFAULT-VALUE})")
     private String cfctBase;
 
+    @Option(names = "--username", required = true,
+            description = "Username for the Causeway app login (used for both app-a and app-b)")
+    private String username;
+
+    @Option(names = "--password", required = true, interactive = true, arity = "0..1",
+            description = "Password for the Causeway app login (prompted if not supplied)")
+    private String password;
+
+    @Option(names = "--cfct-password", required = true, interactive = true, arity = "0..1",
+            description = "Password for the cfct database connection (prompted if not supplied)")
+    private String cfctPassword;
+
     @Option(names = "--headless",
             description = "Run browser in headless mode (default: headed)")
     private boolean headless;
@@ -46,31 +59,47 @@ public class Main implements Callable<Integer> {
         String replayPath = "/wicket/entity/isis.ext.commandLog.CommandReplayManager:" + timestamp;
 
         try (Playwright playwright = Playwright.create()) {
-            BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
-                    .setHeadless(headless);
+            BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions().setHeadless(headless);
             try (Browser browser = playwright.chromium().launch(launchOptions)) {
                 BrowserContext context = browser.newContext();
 
-                CausewayReplayPage appA = new CausewayReplayPage(context.newPage());
-                CausewayReplayPage appB = new CausewayReplayPage(context.newPage());
-                CfctPage cfct = new CfctPage(context.newPage());
+                CausewayReplayPage appA = new CausewayReplayPage(context.newPage(), username, password);
+                CausewayReplayPage appB = new CausewayReplayPage(context.newPage(), username, password);
+                CfctPage cfct = new CfctPage(context.newPage(), cfctPassword);
 
                 appA.navigateTo(appABase + replayPath);
                 appB.navigateTo(appBBase + replayPath);
-                cfct.navigateTo(cfctBase);
+                cfct.login(cfctBase);
 
                 int step = 0;
-                while (appA.isReplayNextEnabled()) {
+                while (appA.hasPendingCommands()) {
                     step++;
-                    appA.clickReplayNext();
-                    appB.clickReplayNext();
-                    cfct.clickRefresh();
-                    if (cfct.hasDifferenceTabs()) {
-                        System.out.println("[step " + step + "] replayed... FAIL");
+                    String member = appA.oldestCommandMember();
+
+                    appA.replayNext();
+                    if ("Failed".equalsIgnoreCase(appA.oldestReplayState())) {
+                        System.out.println("[step " + step + "] " + member + " — replay FAILED on app-a");
                         return 1;
                     }
-                    System.out.println("[step " + step + "] replayed... OK");
+                    appB.replayNext();
+                    if ("Failed".equalsIgnoreCase(appB.oldestReplayState())) {
+                        System.out.println("[step " + step + "] " + member + " — replay FAILED on app-b");
+                        return 1;
+                    }
+
+                    cfct.refresh();
+                    cfct.selectAllTables();
+                    cfct.compare();
+                    ComparisonResult result = cfct.downloadComparison();
+                    if (result.hasDifferences) {
+                        System.out.println("[step " + step + "] " + member + " replayed... FAIL"
+                                + " — database divergence: " + result.describeDifferences());
+                        return 1;
+                    }
+
+                    System.out.println("[step " + step + "] " + member + " replayed... OK");
                 }
+
                 System.out.println("All " + step + " steps passed.");
                 return 0;
             }

@@ -3,3 +3,6 @@ target/
 *.iml
 .DS_Store
 dependency-reduced-pom.xml
+
+# Local exploration/resume-aid harness — contains hardcoded dev credentials; not for VCS
+exploration/

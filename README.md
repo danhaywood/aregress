@@ -48,9 +48,12 @@ sdk use java 17.0.18-tem
 
 ### Required
 
-| Option        | Description |
-|---------------|-------------|
-| `--timestamp` | Baseline timestamp for the `CommandReplayManager` URL, e.g. `2026-04-23T08-32-03.309Z` |
+| Option            | Description |
+|-------------------|-------------|
+| `--timestamp`     | Baseline timestamp for the `CommandReplayManager` URL, e.g. `2026-04-23T08-32-03.309Z` |
+| `--username`      | Username for the Causeway app login (used for both app-a and app-b) |
+| `--password`      | Password for the Causeway app login. Pass `--password` alone to be prompted interactively |
+| `--cfct-password` | Password for the cfct database connection. Pass `--cfct-password` alone to be prompted interactively |
 
 ### Optional
 
@@ -64,22 +67,33 @@ sdk use java 17.0.18-tem
 ### Example
 
 ```bash
-# Headed (default) — browser windows visible for failure diagnosis
-java -jar target/aregress-1.0-SNAPSHOT.jar --timestamp 2026-04-23T08-32-03.309Z
+# Headed (default) — browser windows visible for failure diagnosis.
+# Prompts for the two passwords (not echoed):
+java -jar target/aregress-1.0-SNAPSHOT.jar \
+  --timestamp 2026-04-23T08-32-03.309Z \
+  --username estatio-admin --password --cfct-password
 
-# Headless — for CI
-java -jar target/aregress-1.0-SNAPSHOT.jar --timestamp 2026-04-23T08-32-03.309Z --headless
+# Headless — for CI (pass secrets as args / from a secret store):
+java -jar target/aregress-1.0-SNAPSHOT.jar \
+  --timestamp 2026-04-23T08-32-03.309Z \
+  --username "$AREGRESS_USER" --password "$AREGRESS_PASS" --cfct-password "$CFCT_PASS" \
+  --headless
 ```
 
 ### Output
 
 ```
-[step 1] replayed... OK
-[step 2] replayed... OK
-[step 3] replayed... FAIL
+[step 1] newLocalUser replayed... OK
+[step 2] updateUsername replayed... OK
+[step 3] lock replayed... FAIL — database divergence: isisExtSecman.ApplicationUser (1 differing row(s))
 ```
 
-Exits `0` when all steps pass, `1` on first mismatch.
+Each step is reported with the command's member name. Two failure modes are distinguished:
+
+- `replay FAILED on app-a/-b` — the command failed to execute on one of the Causeway instances.
+- `FAIL — database divergence: <tables>` — the databases diverged after replay (the differing table(s) are named).
+
+Exits `0` when all commands replay and compare cleanly, `1` on the first failure of either kind.
 
 ## Before running
 
