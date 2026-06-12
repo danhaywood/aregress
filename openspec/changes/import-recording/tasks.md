@@ -19,4 +19,4 @@
 ## 5. Build & verify
 
 - [x] 5.1 `mvn package` and verify the fat JAR builds; `--help` shows the timestamp/file group; verify neither/both errors with a usage message.
-- [ ] 5.2 BLOCKED (owner-dependent): once the import endpoint is wired into app-a/app-b, smoke-test `--file <recording>` end-to-end — both apps import, the run proceeds from the returned timestamps.
+- [x] 5.2 Smoke-tested `--file` end-to-end against the wired endpoints (app-a + app-b) and cfct, from a clean reset baseline: aregress imported the recording into both apps, drove the run from each app's returned timestamp, replayed steps 1–17 `OK` (incl. `OK (no footprint)` for the no-op commands), and stopped at step 18 `updateLocale` with `replay FAILED on app-b` (exit 1) — the same genuine app-b regression the `--timestamp` run surfaced. No out-of-band priming / no `--timestamp` needed.
