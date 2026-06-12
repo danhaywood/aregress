@@ -11,7 +11,16 @@ if [[ ! -f "$JAR" ]]; then
 fi
 
 # Require Java 17+
-JAVA_MAJOR=$(java -version 2>&1 | grep -m1 'version' | sed 's/.*"\([0-9]*\).*/\1/')
+JAVA_VERSION_OUTPUT=$(java -version 2>&1 || true)
+# Extract the major version: anchor on `version "` so the greedy `.*` can't
+# swallow past the first quote (which would leave the capture empty).
+JAVA_MAJOR=$(printf '%s\n' "$JAVA_VERSION_OUTPUT" | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | head -1)
+if [[ -z "$JAVA_MAJOR" ]]; then
+    echo "error: could not determine the Java version (is 'java' on PATH?)" >&2
+    echo "$JAVA_VERSION_OUTPUT" >&2
+    echo "       Set JAVA_HOME to a Java 17+ JDK, or run: sdk use java 17.0.18-tem" >&2
+    exit 1
+fi
 if (( JAVA_MAJOR < 17 )); then
     echo "error: Java 17+ required (found Java $JAVA_MAJOR)" >&2
     echo "       Set JAVA_HOME to a suitable JDK, or run: sdk use java 17.0.18-tem" >&2
