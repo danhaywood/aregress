@@ -108,10 +108,9 @@ public class AregressAutomationSecurityConfig {
     @Order(1)
     public SecurityFilterChain automationApiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .antMatcher("/api/automation/**")   // this chain handles only the automation API
-            .csrf().disable()                   // stateless API: aregress posts without a CSRF token
-            .httpBasic(withDefaults())          // HTTP Basic Auth (validated against the existing user store)
-            .and()
+            .antMatcher("/api/automation/**")                 // this chain handles only the automation API
+            .csrf(csrf -> csrf.disable())                     // stateless API: aregress posts without a CSRF token
+            .httpBasic(withDefaults())                        // HTTP Basic Auth (validated against the existing user store)
             .authorizeRequests(auth -> auth.anyRequest().authenticated())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
