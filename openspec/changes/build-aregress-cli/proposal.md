@@ -23,5 +23,12 @@ Regression testing the JDO→JPA refactoring of our in-house Causeway app is cur
 ## Impact
 
 - New Maven project (`pom.xml`) in the repo root
-- Dependencies: Playwright Java, Picocli, maven-shade-plugin (fat JAR)
+- Dependencies: Playwright Java, Picocli, Gson (parse cfct's JSON export), maven-shade-plugin (fat JAR)
 - Requires two running Causeway app instances and a running `cfct` instance at the configured URLs
+
+## Delivered scope (as shipped)
+
+- Required `--username` / `--password` / `--cfct-password` options added — the apps require authentication (form login for Causeway; DB-connection login for cfct), which the original proposal didn't account for.
+- cfct difference detection is via the **JSON exported by the Download action** (top-level `hasDifferences`), not by scraping the Vaadin results tabs — more robust, and yields per-table diagnostics on failure.
+- The comparison is a **full-database** compare each step. The intended per-command **footprint** compare is **deferred to a follow-up change**: cfct's footprint auto-selection does not trigger under headless automation, so the follow-up will add a cfct REST endpoint and have aregress fetch the comparison JSON over HTTP (removing the cfct-UI driving entirely).
+- Validated end-to-end against the live apps: the happy path (full 12-command suite replays OK, exit 0) and the divergence FAIL path (exit 1 with the differing table named). The "replay Failed" stop-condition is implemented but not yet exercised against a real replay failure.

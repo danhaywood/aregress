@@ -22,7 +22,7 @@
 - [x] 3.4 Create `CfctPage.java` — wraps a Playwright `Page`, exposes `navigateTo(url)`, `clickRefresh()`, `hasDifferenceTabs()`
 - [x] 3.5 Inspect the running cfct app to discover selectors — DONE: cfct exposes stable `data-testid`s. See design.md "Findings".
 - [x] 3.5a Reworked `CfctPage` to the real flow: `login()` (`login-password`/`login-submit`, waits for Refresh enabled); `refresh()` (`command-filter-refresh`); `selectAllTables()` (`table-select-all-checkbox`, full-DB compare — footprint doesn't auto-load under automation); `compare()` (`compare-button` + polls `comparison-progress-summary` for "complete"); `downloadComparison()` → parses the exported JSON into `ComparisonResult`. Difference detection is via JSON `hasDifferences` (not tab-scraping). Added `ComparisonResult` + Gson dependency.
-- [ ] 3.5b (future optimisation) Drive the per-command footprint compare instead of full-DB, once the footprint-load event is known (see design.md OPEN BLOCKER).
+- [>] 3.5b DEFERRED to a separate change — drive the per-command footprint compare instead of full-DB. cfct's footprint auto-selection does not trigger under headless automation (confirmed via screenshot: no command row is selected on refresh, footprint grid stays empty, Compare disabled). Rather than reverse-engineer the UI event, the owner will add a cfct REST endpoint returning the comparison JSON; aregress will then fetch it over HTTP (dropping the cfct-UI driving entirely). Tracked as a new change.
 
 ## 4. Orchestration Loop
 
@@ -37,8 +37,8 @@
 
 - [x] 5.1 Run `mvn package` and verify fat JAR is produced
 - [x] 5.2 Run `playwright install` (or document as a prerequisite) to download browser binaries
-- [~] 5.3 Happy-path smoke test (clean lockstep run → "All N steps passed.", exit 0): NOT YET — needs both apps re-primed to a clean *in-sync* state (they are currently deliberately desynced). Pipeline plumbing is otherwise validated by 5.4.
-- [x] 5.4 Failure-case smoke test: ran the JAR headless against the live (diverged) apps — output `[step 1] lock replayed... FAIL — database divergence: isisExtSecman.ApplicationUser (1 differing row(s))`. Validates end-to-end: dual Causeway login, cfct DB login, lockstep replay, full-DB compare, Download→JSON parse, divergence detection + diagnostics, exit 1. (The "Failed replay" stop-condition path is coded but not yet exercised against a real replay failure.)
+- [x] 5.3 Happy-path smoke test: against a clean in-sync prime, the full 12-command suite replayed `OK` across runs (`updateAccountType`, `updateAtPath ×2`, `updateEmailAddress`, `updatePhoneNumber`, `updateFaxNumber`, `updateName`, `addRole`, …) with no divergence — confirmed via the headless cfct screenshot showing every command at `OK`. (The idempotent `selectAllTables()` fix was required: the select-all toggle persists across refreshes, so a blind click could DEselect.)
+- [x] 5.4 Failure-case smoke test: ran the JAR headless against deliberately-diverged apps — output `[step 1] lock replayed... FAIL — database divergence: isisExtSecman.ApplicationUser (1 differing row(s))`, exit 1. Validates end-to-end: dual Causeway login, cfct DB login, lockstep replay, full-DB compare, Download→JSON parse, divergence detection + diagnostics. (The "Failed replay" stop-condition path is coded but not yet exercised against a real replay failure.)
 
 ## 6. Documentation
 

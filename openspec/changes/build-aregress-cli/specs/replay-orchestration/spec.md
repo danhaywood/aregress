@@ -37,25 +37,27 @@ After replaying on each app, the tool SHALL check the replayed command's Causewa
 
 #### Scenario: Replay execution failure
 - **WHEN** the just-replayed command's Replay State reads `Failed` on app-a or app-b
-- **THEN** the tool logs `[step N] replay FAILED` (indicating execution failure) and exits with code 1
+- **THEN** the tool logs `[step N] <command> — replay FAILED on app-a` (or `app-b`) and exits with code 1
 
 ### Requirement: Compare in cfct and check for differences
-After both replays succeed, the tool SHALL drive cfct to compare the just-replayed command's footprint: refresh, select the command, select its table(s), click compare, then inspect whether the comparison results contain difference tabs.
+After both replays succeed, the tool SHALL drive cfct to compare the databases and determine whether they have diverged: refresh, select all tables, click compare, wait for completion, then click Download and parse the exported JSON. The top-level `hasDifferences` flag of that JSON is the divergence signal.
+
+> NOTE (delivered scope): the comparison is a **full-database** compare (cfct's per-command *footprint* auto-selection does not trigger under headless automation). This is correct but slow; the per-command footprint compare is deferred to a separate change that adds a cfct REST endpoint (see design.md). Detection is via the downloaded JSON rather than scraping the Vaadin results tabs, which is more robust.
 
 #### Scenario: No differences — pass
-- **WHEN** after comparing, the cfct comparison results contain no difference tabs
-- **THEN** the tool logs `[step N] replayed... OK` and continues to the next iteration
+- **WHEN** the downloaded comparison JSON reports `hasDifferences: false`
+- **THEN** the tool logs `[step N] <command> replayed... OK` and continues to the next iteration
 
 #### Scenario: Differences detected — fail
-- **WHEN** after comparing, the cfct comparison results contain one or more difference tabs
-- **THEN** the tool logs `[step N] replayed... FAIL` and exits with code 1
+- **WHEN** the downloaded comparison JSON reports `hasDifferences: true`
+- **THEN** the tool logs `[step N] <command> replayed... FAIL — database divergence: <differing tables>` and exits with code 1
 
 ### Requirement: Log progress to stdout
 The tool SHALL log each step result and a final summary to stdout.
 
 #### Scenario: Per-step logging
 - **WHEN** a step completes (pass or fail)
-- **THEN** the tool prints `[step N] replayed... OK` or `[step N] replayed... FAIL`
+- **THEN** the tool prints the step number and command name, e.g. `[step N] <command> replayed... OK`, or the corresponding `FAIL` / `replay FAILED` message on failure
 
 #### Scenario: Final summary on success
 - **WHEN** all steps complete without failure

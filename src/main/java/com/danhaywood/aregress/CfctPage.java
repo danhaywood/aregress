@@ -47,10 +47,37 @@ public class CfctPage {
         page.waitForTimeout(2500);
     }
 
-    /** Select every table for comparison (full-database compare) and wait until Compare is enabled. */
+    /**
+     * Select every table for comparison (full-database compare) and wait until Compare is enabled.
+     *
+     * The "select all" control is a toggle whose state persists across refreshes, so a blind click
+     * can DEselect a previously-selected set. This drives it idempotently to the fully-checked state.
+     */
     public void selectAllTables() {
-        page.getByTestId("table-select-all-checkbox").click();
-        waitUntilEnabled(page.getByTestId("compare-button"), 15_000);
+        Locator selectAll = page.getByTestId("table-select-all-checkbox");
+        Locator compare = page.getByTestId("compare-button");
+
+        if (!isChecked(selectAll)) {
+            selectAll.click();
+        }
+        if (waitUntilEnabled(compare, 20_000)) {
+            return;
+        }
+        // Compare still disabled — the checkbox may have been indeterminate/partial. Force a clean
+        // off→on cycle and try once more.
+        if (isChecked(selectAll)) {
+            selectAll.click();
+            page.waitForTimeout(300);
+        }
+        selectAll.click();
+        if (!waitUntilEnabled(compare, 20_000)) {
+            throw new IllegalStateException(
+                    "cfct Compare did not become enabled after selecting all tables");
+        }
+    }
+
+    private boolean isChecked(Locator checkbox) {
+        return Boolean.TRUE.equals(checkbox.evaluate("e => e.checked === true"));
     }
 
     /** Run the comparison and block until cfct reports completion. */
@@ -96,14 +123,15 @@ public class CfctPage {
         return s.count() > 0 ? s.innerText().trim() : "";
     }
 
-    private void waitUntilEnabled(Locator locator, long timeoutMillis) {
+    private boolean waitUntilEnabled(Locator locator, long timeoutMillis) {
         long deadline = System.currentTimeMillis() + timeoutMillis;
         while (System.currentTimeMillis() < deadline) {
             Object disabled = locator.evaluate("e => e.hasAttribute('disabled')");
             if (Boolean.FALSE.equals(disabled)) {
-                return;
+                return true;
             }
             page.waitForTimeout(500);
         }
+        return false;
     }
 }
