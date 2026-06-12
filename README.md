@@ -49,10 +49,18 @@ sdk use java 17.0.18-tem
 
 ### Required
 
+Exactly one of `--timestamp` / `--file` is required:
+
 | Option            | Description |
 |-------------------|-------------|
-| `--timestamp`     | Baseline timestamp for the `CommandReplayManager` URL, e.g. `2026-04-23T08-32-03.309Z` |
-| `--username`      | Username for the Causeway app login (used for both app-a and app-b) |
+| `--timestamp`     | Baseline timestamp of an already-imported batch, e.g. `2026-04-23T08-32-03.309Z` |
+| `--file`          | A recording file to import into both apps (instead of `--timestamp`); each app's import endpoint returns the baseline timestamp to replay. See [docs/app-import-endpoint.md](docs/app-import-endpoint.md) |
+
+Always required:
+
+| Option            | Description |
+|-------------------|-------------|
+| `--username`      | Username for the Causeway app login (used for both app-a and app-b; also the Basic-Auth user for the `--file` import endpoint) |
 | `--password`      | Password for the Causeway app login. Pass `--password` alone to be prompted interactively |
 | `--cfct-password` | HTTP Basic-Auth secret for the cfct automation API. Pass `--cfct-password` alone to be prompted interactively |
 
@@ -80,6 +88,12 @@ java -jar target/aregress-1.0-SNAPSHOT.jar \
   --timestamp 2026-04-23T08-32-03.309Z \
   --username "$AREGRESS_USER" --password "$AREGRESS_PASS" --cfct-password "$CFCT_PASS" \
   --headless
+
+# Import a recording first (no out-of-band priming): aregress POSTs the file to
+# each app's import endpoint and replays from the timestamp each returns.
+java -jar target/aregress-1.0-SNAPSHOT.jar \
+  --file recording.xml \
+  --username estatio-admin --password --cfct-password
 ```
 
 ### Output
@@ -99,9 +113,8 @@ Exits `0` when all commands replay and compare cleanly, `1` on the first regress
 
 ## Before running
 
-1. Import the same command recording into both app instances (out-of-band)
-2. Navigate both apps to the `CommandReplayManager` page (or let aregress do it via `--timestamp`)
-3. Ensure `cfct` is running with its automation REST API enabled and connected to both databases
+1. Get the recording into both apps — either import it out-of-band and pass `--timestamp`, or pass `--file <recording>` and let aregress import it via each app's import endpoint (see [docs/app-import-endpoint.md](docs/app-import-endpoint.md))
+2. Ensure `cfct` is running with its automation REST API enabled and connected to both databases
 
 ## CI setup
 

@@ -5,9 +5,11 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
 import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -18,9 +20,20 @@ import java.util.concurrent.Callable;
 )
 public class Main implements Callable<Integer> {
 
-    @Option(names = "--timestamp", required = true,
-            description = "Baseline timestamp for the CommandReplayManager URL, e.g. 2026-04-23T08-32-03.309Z")
-    private String timestamp;
+    /** Exactly one of --timestamp / --file is required (mutually exclusive). */
+    @ArgGroup(exclusive = true, multiplicity = "1")
+    private ReplayTarget replayTarget;
+
+    static class ReplayTarget {
+        @Option(names = "--timestamp",
+                description = "Baseline timestamp of an already-imported batch, e.g. 2026-04-23T08-32-03.309Z")
+        String timestamp;
+
+        @Option(names = "--file",
+                description = "Recording file to import into both apps (instead of --timestamp); "
+                        + "each app's import endpoint returns the baseline timestamp to replay")
+        Path file;
+    }
 
     @Option(names = "--app-a", defaultValue = "http://localhost:8080",
             description = "Base URL for app-a (default: ${DEFAULT-VALUE})")
@@ -60,7 +73,23 @@ public class Main implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        String replayPath = "/wicket/entity/isis.ext.commandLog.CommandReplayManager:" + timestamp;
+        // Resolve each app's replay timestamp: either the supplied --timestamp, or — for --file —
+        // by importing the recording into each app and using the baseline timestamp it returns.
+        String timestampA;
+        String timestampB;
+        if (replayTarget.file != null) {
+            try {
+                timestampA = new AppImportClient(appABase, username, password).importRecording(replayTarget.file);
+                timestampB = new AppImportClient(appBBase, username, password).importRecording(replayTarget.file);
+            } catch (AppImportClient.ImportException e) {
+                System.out.println("import failed: " + e.getMessage());
+                return 2;
+            }
+        } else {
+            timestampA = replayTarget.timestamp;
+            timestampB = replayTarget.timestamp;
+        }
+        String pathPrefix = "/wicket/entity/isis.ext.commandLog.CommandReplayManager:";
 
         try (Playwright playwright = Playwright.create()) {
             BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions().setHeadless(headless);
@@ -71,8 +100,8 @@ public class Main implements Callable<Integer> {
                 CausewayReplayPage appB = new CausewayReplayPage(context.newPage(), username, password);
                 CfctClient cfct = new CfctClient(cfctBase, cfctUsername, cfctPassword);
 
-                appA.navigateTo(appABase + replayPath);
-                appB.navigateTo(appBBase + replayPath);
+                appA.navigateTo(appABase + pathPrefix + timestampA);
+                appB.navigateTo(appBBase + pathPrefix + timestampB);
 
                 int step = 0;
                 while (appA.hasPendingCommands()) {
