@@ -121,6 +121,8 @@ public class ReplayCommand implements Callable<Integer> {
                 while (appAPage.hasPendingCommands()) {
                     step++;
                     String member = appAPage.oldestCommandMember();
+                    // The command about to be replayed — used to confirm the cfct comparison is for it.
+                    String expectedId = appAPage.oldestCommandInteractionId();
 
                     appAPage.replayNext();
                     if ("Failed".equalsIgnoreCase(appAPage.oldestReplayState())) {
@@ -133,13 +135,44 @@ public class ReplayCommand implements Callable<Integer> {
                         return 1;
                     }
 
-                    ComparisonResult result;
-                    try {
-                        result = cfct.latestComparison();
-                    } catch (CfctClient.CfctApiException e) {
-                        System.out.println("[step " + step + "] " + member + " — cfct automation error: " + e.getMessage());
+                    // Race guard: re-query cfct (each query re-refreshes server-side) until it reports the
+                    // command we just replayed, up to the configured attempts. Avoids comparing a stale
+                    // (previous) command when cfct is queried before both apps have committed.
+                    int maxAttempts = Math.max(1, props.getCompare().getMaxAttempts());
+                    long delayMillis = props.getCompare().getRetryDelay().toMillis();
+                    ComparisonResult result = null;
+                    String lastReported = null;
+                    boolean confirmed = false;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                        try {
+                            result = cfct.latestComparison();
+                        } catch (CfctClient.CfctApiException e) {
+                            System.out.println("[step " + step + "] " + member + " — cfct automation error: " + e.getMessage());
+                            return 2;
+                        }
+                        lastReported = result.command != null ? result.command.interactionId : null;
+                        // If we couldn't determine the expected id, proceed best-effort (can't verify).
+                        if (expectedId == null
+                                || (lastReported != null && expectedId.equalsIgnoreCase(lastReported))) {
+                            confirmed = true;
+                            break;
+                        }
+                        if (attempt < maxAttempts && delayMillis > 0) {
+                            try {
+                                Thread.sleep(delayMillis);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        }
+                    }
+                    if (!confirmed) {
+                        System.out.println("[step " + step + "] " + member
+                                + " — could not confirm cfct comparison for " + expectedId
+                                + " after " + maxAttempts + " attempt(s) (last reported: " + lastReported + ")");
                         return 2;
                     }
+
                     if (result.hasDifferences) {
                         System.out.println("[step " + step + "] " + member + " replayed... FAIL"
                                 + " — database divergence: " + result.describeDifferences());

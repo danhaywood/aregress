@@ -129,6 +129,14 @@ with CLI options taking highest precedence:
 | `aregress.app-b`            | `--app-b`         | `http://localhost:9090` |
 | `aregress.cfct`             | `--cfct`          | `http://localhost:10010` |
 | `aregress.cfct-username`    | `--cfct-username` | `robot` |
+| `aregress.compare.max-attempts` | _(config only)_ | `5` |
+| `aregress.compare.retry-delay`  | _(config only)_ | `1s` |
+
+`aregress.compare.*` tune the per-step race guard: after replaying a command, aregress re-queries
+cfct until the comparison it returns is for that command (matching `command.interactionId`), up to
+`max-attempts` times with `retry-delay` between attempts. This absorbs the lag between a replay
+finishing and cfct seeing it; if the command is never confirmed within the attempts, the run aborts
+with exit `2` rather than trusting a stale comparison.
 
 Examples (all set the cfct base URL): `--cfct https://host:10010` · `-Daregress.cfct=https://host:10010` · `AREGRESS_CFCT=https://host:10010`.
 

@@ -2,6 +2,8 @@ package com.danhaywood.aregress;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 /**
  * Externalized, non-secret settings, bound from Spring Boot configuration under the {@code aregress}
  * prefix ({@code application.yml}, environment variables, system properties). Defaults ship in the
@@ -21,6 +23,40 @@ public class AregressProperties {
     private String cfct = "http://localhost:10010";
     /** Username for HTTP Basic Auth against the cfct automation API. */
     private String cfctUsername = "robot";
+    /** Tuning for the per-step comparison race-guard. */
+    private Compare compare = new Compare();
+
+    /** Race-guard tuning: how hard to retry until cfct's reported command matches the replayed one. */
+    public static class Compare {
+        /** Maximum number of cfct comparison queries per step while waiting for the ids to match. */
+        private int maxAttempts = 5;
+        /** Delay between attempts. */
+        private Duration retryDelay = Duration.ofSeconds(1);
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
+
+        public void setMaxAttempts(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
+
+        public Duration getRetryDelay() {
+            return retryDelay;
+        }
+
+        public void setRetryDelay(Duration retryDelay) {
+            this.retryDelay = retryDelay;
+        }
+    }
+
+    public Compare getCompare() {
+        return compare;
+    }
+
+    public void setCompare(Compare compare) {
+        this.compare = compare;
+    }
 
     public String getAppA() {
         return appA;

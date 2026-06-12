@@ -24,6 +24,13 @@ public class ComparisonResult {
     public List<Table> differingTables;
     /** Every table that was compared for this command — empty for a no-op (no-footprint) command. */
     public List<Table> comparedTables;
+    /** The command this comparison is for — used to confirm it matches the command just replayed. */
+    public Command command;
+
+    public static class Command {
+        public String interactionId;
+        public String timestamp;
+    }
 
     public static class Table {
         public TableId table;

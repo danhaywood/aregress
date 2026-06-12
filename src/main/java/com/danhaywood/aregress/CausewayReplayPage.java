@@ -4,6 +4,9 @@ import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Wraps the Apache Causeway (Wicket) CommandReplayManager page of one app instance.
  *
@@ -21,6 +24,9 @@ public class CausewayReplayPage {
     private static final String REPLAY_NEXT_SELECTOR = "a:has-text(\"Replay Or Retry Next\")";
     // The Replay State badge in each command row.
     private static final String STATE_BADGE_SELECTOR = ".fragment-compact-badge";
+    // The command's interaction id, from its entity link href (…ReplayableCommand:<interactionId>).
+    private static final Pattern REPLAYABLE_COMMAND_ID =
+            Pattern.compile("ReplayableCommand:([0-9a-fA-F-]{36})");
 
     private final Page page;
     private final String username;
@@ -64,6 +70,28 @@ public class CausewayReplayPage {
         }
         Locator cells = firstRow.locator("td");
         return cells.count() > 3 ? cells.nth(3).innerText().trim() : null;
+    }
+
+    /**
+     * Interaction id of the oldest command (the one "Replay Or Retry Next" will execute), or null if
+     * the collection is empty. Read from the row's command entity link, whose href is
+     * {@code ./isis.ext.commandLog.ReplayableCommand:<interactionId>}.
+     */
+    public String oldestCommandInteractionId() {
+        Locator firstRow = page.locator("table").first().locator("tbody tr").first();
+        if (firstRow.count() == 0) {
+            return null;
+        }
+        Locator link = firstRow.locator("a[href*=\"ReplayableCommand:\"]").first();
+        if (link.count() == 0) {
+            return null;
+        }
+        String href = link.getAttribute("href");
+        if (href == null) {
+            return null;
+        }
+        Matcher m = REPLAYABLE_COMMAND_ID.matcher(href);
+        return m.find() ? m.group(1) : null;
     }
 
     /** Replay State of the oldest command: "Pending", "Failed", "Ok", or null if the collection is empty. */
