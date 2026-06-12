@@ -1,11 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: Compare in cfct and check for differences
-After both replays succeed, the tool SHALL obtain the comparison from cfct's automation REST API and determine whether the databases have diverged. The tool SHALL `GET {cfct}/api/automation/comparison.json` (HTTP Basic Auth); the endpoint refreshes the footprint comparison for the newest successful command server-side before returning it. The tool SHALL parse the returned JSON, whose top-level `hasDifferences` flag is the divergence signal.
+After both replays succeed, the tool SHALL obtain the comparison from cfct's automation REST API and determine whether the databases have diverged. The tool SHALL `GET {cfct}/api/automation/comparison.json` (HTTP Basic Auth); the endpoint refreshes the footprint comparison for the newest successful command server-side before returning it. The tool SHALL parse the returned JSON, whose top-level `hasDifferences` flag is the divergence signal (with `differingTables` and `comparedTables` providing detail).
 
 #### Scenario: No differences — pass
 - **WHEN** the comparison request returns `200` and the JSON reports `hasDifferences: false`
 - **THEN** the tool logs `[step N] <command> replayed... OK` and continues to the next iteration
+
+#### Scenario: No-op command with no footprint
+- **WHEN** the just-replayed command touched no business tables and the comparison returns `200` with `hasDifferences: false` and an empty `comparedTables`
+- **THEN** the tool logs `[step N] <command> replayed... OK (no footprint)` and continues to the next iteration
 
 #### Scenario: Differences detected — fail
 - **WHEN** the comparison JSON reports `hasDifferences: true`

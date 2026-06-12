@@ -31,7 +31,7 @@ public class Main implements Callable<Integer> {
     private String appBBase;
 
     @Option(names = "--cfct", defaultValue = "http://localhost:10010",
-            description = "Base URL for cfct (default: ${DEFAULT-VALUE})")
+            description = "Base URL of the cfct automation REST API (default: ${DEFAULT-VALUE})")
     private String cfctBase;
 
     @Option(names = "--username", required = true,
@@ -42,8 +42,12 @@ public class Main implements Callable<Integer> {
             description = "Password for the Causeway app login (prompted if not supplied)")
     private String password;
 
+    @Option(names = "--cfct-username", defaultValue = "robot",
+            description = "Username for HTTP Basic Auth against the cfct automation API (default: ${DEFAULT-VALUE})")
+    private String cfctUsername;
+
     @Option(names = "--cfct-password", required = true, interactive = true, arity = "0..1",
-            description = "Password for the cfct database connection (prompted if not supplied)")
+            description = "Password (Basic-Auth secret) for the cfct automation API (prompted if not supplied)")
     private String cfctPassword;
 
     @Option(names = "--headless",
@@ -65,11 +69,10 @@ public class Main implements Callable<Integer> {
 
                 CausewayReplayPage appA = new CausewayReplayPage(context.newPage(), username, password);
                 CausewayReplayPage appB = new CausewayReplayPage(context.newPage(), username, password);
-                CfctPage cfct = new CfctPage(context.newPage(), cfctPassword);
+                CfctClient cfct = new CfctClient(cfctBase, cfctUsername, cfctPassword);
 
                 appA.navigateTo(appABase + replayPath);
                 appB.navigateTo(appBBase + replayPath);
-                cfct.login(cfctBase);
 
                 int step = 0;
                 while (appA.hasPendingCommands()) {
@@ -87,17 +90,21 @@ public class Main implements Callable<Integer> {
                         return 1;
                     }
 
-                    cfct.refresh();
-                    cfct.selectAllTables();
-                    cfct.compare();
-                    ComparisonResult result = cfct.downloadComparison();
+                    ComparisonResult result;
+                    try {
+                        result = cfct.latestComparison();
+                    } catch (CfctClient.CfctApiException e) {
+                        System.out.println("[step " + step + "] " + member + " — cfct automation error: " + e.getMessage());
+                        return 2;
+                    }
                     if (result.hasDifferences) {
                         System.out.println("[step " + step + "] " + member + " replayed... FAIL"
                                 + " — database divergence: " + result.describeDifferences());
                         return 1;
                     }
 
-                    System.out.println("[step " + step + "] " + member + " replayed... OK");
+                    String suffix = result.comparedTableCount() == 0 ? " (no footprint)" : "";
+                    System.out.println("[step " + step + "] " + member + " replayed... OK" + suffix);
                 }
 
                 System.out.println("All " + step + " steps passed.");

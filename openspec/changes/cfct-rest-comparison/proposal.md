@@ -5,8 +5,8 @@
 ## What Changes
 
 - **cfct exposes an automation REST API** (implemented in the cfct project — an external dependency of this change), secured with HTTP Basic Auth (realm `CFCT Automation`):
-  - `GET /api/automation/comparison.json` → **refreshes first** (recomputes the footprint comparison for the **newest successful command** server-side) and returns the result, in the **same JSON format** as the UI download (`hasDifferences`, `tables[].summary`, `differingRows`).
-- **aregress replaces cfct-UI driving with an HTTP client.** Per step, after both replays: a single `GET comparison.json`, then check `hasDifferences`. The `ComparisonResult` model and the decision logic are reused unchanged.
+  - `GET /api/automation/comparison.json` → **refreshes first** (recomputes the footprint comparison for the **newest successful command** server-side) and returns the result as JSON: top-level `hasDifferences`, `differingTables[]` (the tables that differ), and `comparedTables[]` (everything compared). A **no-op / no-footprint command** (e.g. a navigation/finder that touches no business tables) returns `200` with `hasDifferences: false` and an empty `comparedTables`.
+- **aregress replaces cfct-UI driving with an HTTP client.** Per step, after both replays: a single `GET comparison.json`, then check `hasDifferences`. The `ComparisonResult` model is updated to the `differingTables`/`comparedTables` field names; the decision logic is otherwise reused.
 - **Per-command footprint compare** (the endpoint scopes to the newest command's impacted tables) replaces the full-database compare — dramatically faster, and no interaction-id mapping is needed (the endpoint tracks the newest successful command).
 - **cfct no longer needs Playwright at all.** The cfct browser page, the DB-connection UI login, and the table-selection/compare/download UI flow are removed. (Causeway replay is still driven via Playwright.)
 - **CLI**: `--cfct` becomes the REST base URL; cfct credentials become **Basic-Auth** (`--cfct-username` / `--cfct-password`, e.g. `robot`/secret) instead of a UI-login password.

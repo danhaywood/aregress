@@ -2,8 +2,9 @@
 
 Automated regression testing CLI for the JDO→JPA Causeway refactoring.
 
-Drives two Causeway app instances and a `cfct` database-comparison tool via Playwright,
-replaying recorded commands step-by-step and stopping on the first detected divergence.
+Drives two Causeway app instances via Playwright, replaying recorded commands step-by-step,
+and after each command queries the `cfct` database-comparison tool's automation REST API —
+stopping on the first detected divergence.
 
 ## Prerequisites
 
@@ -53,16 +54,17 @@ sdk use java 17.0.18-tem
 | `--timestamp`     | Baseline timestamp for the `CommandReplayManager` URL, e.g. `2026-04-23T08-32-03.309Z` |
 | `--username`      | Username for the Causeway app login (used for both app-a and app-b) |
 | `--password`      | Password for the Causeway app login. Pass `--password` alone to be prompted interactively |
-| `--cfct-password` | Password for the cfct database connection. Pass `--cfct-password` alone to be prompted interactively |
+| `--cfct-password` | HTTP Basic-Auth secret for the cfct automation API. Pass `--cfct-password` alone to be prompted interactively |
 
 ### Optional
 
-| Option      | Default                    | Description |
-|-------------|----------------------------|-------------|
-| `--app-a`   | `http://localhost:8080`    | Base URL for app-a |
-| `--app-b`   | `http://localhost:9090`    | Base URL for app-b |
-| `--cfct`    | `http://localhost:10010`   | Base URL for cfct |
-| `--headless` | false (headed)            | Run browser headless (for CI) |
+| Option            | Default                    | Description |
+|-------------------|----------------------------|-------------|
+| `--app-a`         | `http://localhost:8080`    | Base URL for app-a |
+| `--app-b`         | `http://localhost:9090`    | Base URL for app-b |
+| `--cfct`          | `http://localhost:10010`   | Base URL of the cfct automation REST API |
+| `--cfct-username` | `robot`                    | Username for HTTP Basic Auth against the cfct automation API |
+| `--headless`      | false (headed)             | Run browser headless (for CI) |
 
 ### Example
 
@@ -93,13 +95,13 @@ Each step is reported with the command's member name. Two failure modes are dist
 - `replay FAILED on app-a/-b` — the command failed to execute on one of the Causeway instances.
 - `FAIL — database divergence: <tables>` — the databases diverged after replay (the differing table(s) are named).
 
-Exits `0` when all commands replay and compare cleanly, `1` on the first failure of either kind.
+Exits `0` when all commands replay and compare cleanly, `1` on the first regression (replay failure or database divergence), and `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.).
 
 ## Before running
 
 1. Import the same command recording into both app instances (out-of-band)
 2. Navigate both apps to the `CommandReplayManager` page (or let aregress do it via `--timestamp`)
-3. Ensure `cfct` is running and connected to both databases
+3. Ensure `cfct` is running with its automation REST API enabled and connected to both databases
 
 ## CI setup
 

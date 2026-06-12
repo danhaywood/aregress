@@ -4,9 +4,11 @@
 
 cfct now provides an **automation REST API** (per its README), secured with HTTP Basic Auth (realm `CFCT Automation`):
 
-- `GET /api/automation/comparison.json` → **refreshes first** (recomputes the footprint comparison for the **newest successful command** server-side) and returns the result, in the **same deterministic JSON format** as the UI download (`hasDifferences`, `tables[].summary`, `differingRows`).
+- `GET /api/automation/comparison.json` → **refreshes first** (recomputes the footprint comparison for the **newest successful command** server-side) and returns JSON: top-level `hasDifferences`, `differingTables[]` (tables that differ, each with `summary` + `differingRows`), and `comparedTables[]` (all tables compared). A **no-op / no-footprint command** returns `200` with `hasDifferences: false` and an empty `comparedTables`, so such commands are simply OK — no special-casing in `aregress`.
 
 This lets `aregress` obtain a fast, correctly-scoped result with a single HTTP call and drop cfct UI automation entirely.
+
+> Contract status (2026-06-12): the no-op→`200` behaviour and the `differingTables`/`comparedTables` field names are an agreed contract that the cfct project is still implementing. `aregress` is coded against this contract ahead of the endpoint shipping it.
 
 ## Goals / Non-Goals
 
