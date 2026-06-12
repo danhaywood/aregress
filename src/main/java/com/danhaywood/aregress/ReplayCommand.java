@@ -4,7 +4,7 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
-import picocli.CommandLine;
+import org.springframework.stereotype.Component;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -12,13 +12,28 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
+/**
+ * The aregress command: replay recorded commands on two Causeway apps in lockstep and compare their
+ * databases via cfct after each command, stopping on the first replay failure or database divergence.
+ *
+ * A Spring-managed bean (instantiated via {@code PicocliSpringFactory}) so that {@link AregressProperties}
+ * can be injected. For the externalized settings, the CLI option wins when supplied, otherwise the
+ * configured value (or its bundled default) is used. Secrets are CLI/prompt only.
+ */
 @Command(
         name = "aregress",
         mixinStandardHelpOptions = true,
         description = "Automates regression testing by replaying commands on two Causeway app instances "
                 + "in lockstep and comparing their databases via cfct after each command."
 )
-public class Main implements Callable<Integer> {
+@Component
+public class ReplayCommand implements Callable<Integer> {
+
+    private final AregressProperties props;
+
+    public ReplayCommand(AregressProperties props) {
+        this.props = props;
+    }
 
     /** Exactly one of --timestamp / --file is required (mutually exclusive). */
     @ArgGroup(exclusive = true, multiplicity = "1")
@@ -35,17 +50,18 @@ public class Main implements Callable<Integer> {
         Path file;
     }
 
-    @Option(names = "--app-a", defaultValue = "http://localhost:8080",
-            description = "Base URL for app-a (default: ${DEFAULT-VALUE})")
+    // For these, a null value means "fall back to configuration" (aregress.* / application.yml).
+    @Option(names = "--app-a", description = "Base URL for app-a (overrides config aregress.app-a)")
     private String appABase;
 
-    @Option(names = "--app-b", defaultValue = "http://localhost:9090",
-            description = "Base URL for app-b (default: ${DEFAULT-VALUE})")
+    @Option(names = "--app-b", description = "Base URL for app-b (overrides config aregress.app-b)")
     private String appBBase;
 
-    @Option(names = "--cfct", defaultValue = "http://localhost:10010",
-            description = "Base URL of the cfct automation REST API (default: ${DEFAULT-VALUE})")
+    @Option(names = "--cfct", description = "Base URL of the cfct automation REST API (overrides config aregress.cfct)")
     private String cfctBase;
+
+    @Option(names = "--cfct-username", description = "Basic-Auth user for the cfct automation API (overrides config aregress.cfct-username)")
+    private String cfctUsername;
 
     @Option(names = "--username", required = true,
             description = "Username for the Causeway app login (used for both app-a and app-b)")
@@ -55,10 +71,6 @@ public class Main implements Callable<Integer> {
             description = "Password for the Causeway app login (prompted if not supplied)")
     private String password;
 
-    @Option(names = "--cfct-username", defaultValue = "robot",
-            description = "Username for HTTP Basic Auth against the cfct automation API (default: ${DEFAULT-VALUE})")
-    private String cfctUsername;
-
     @Option(names = "--cfct-password", required = true, interactive = true, arity = "0..1",
             description = "Password (Basic-Auth secret) for the cfct automation API (prompted if not supplied)")
     private String cfctPassword;
@@ -67,20 +79,22 @@ public class Main implements Callable<Integer> {
             description = "Run browser in headless mode (default: headed)")
     private boolean headless;
 
-    public static void main(String[] args) {
-        System.exit(new CommandLine(new Main()).execute(args));
-    }
-
     @Override
     public Integer call() {
-        // Resolve each app's replay timestamp: either the supplied --timestamp, or — for --file —
-        // by importing the recording into each app and using the baseline timestamp it returns.
+        // CLI option wins; otherwise the configured value (or its bundled default).
+        String appA = appABase != null ? appABase : props.getAppA();
+        String appB = appBBase != null ? appBBase : props.getAppB();
+        String cfctUrl = cfctBase != null ? cfctBase : props.getCfct();
+        String cfctUser = cfctUsername != null ? cfctUsername : props.getCfctUsername();
+
+        // Resolve each app's replay timestamp: either --timestamp, or — for --file — by importing the
+        // recording into each app and using the baseline timestamp it returns.
         String timestampA;
         String timestampB;
         if (replayTarget.file != null) {
             try {
-                timestampA = new AppImportClient(appABase, username, password).importRecording(replayTarget.file);
-                timestampB = new AppImportClient(appBBase, username, password).importRecording(replayTarget.file);
+                timestampA = new AppImportClient(appA, username, password).importRecording(replayTarget.file);
+                timestampB = new AppImportClient(appB, username, password).importRecording(replayTarget.file);
             } catch (AppImportClient.ImportException e) {
                 System.out.println("import failed: " + e.getMessage());
                 return 2;
@@ -96,25 +110,25 @@ public class Main implements Callable<Integer> {
             try (Browser browser = playwright.chromium().launch(launchOptions)) {
                 BrowserContext context = browser.newContext();
 
-                CausewayReplayPage appA = new CausewayReplayPage(context.newPage(), username, password);
-                CausewayReplayPage appB = new CausewayReplayPage(context.newPage(), username, password);
-                CfctClient cfct = new CfctClient(cfctBase, cfctUsername, cfctPassword);
+                CausewayReplayPage appAPage = new CausewayReplayPage(context.newPage(), username, password);
+                CausewayReplayPage appBPage = new CausewayReplayPage(context.newPage(), username, password);
+                CfctClient cfct = new CfctClient(cfctUrl, cfctUser, cfctPassword);
 
-                appA.navigateTo(appABase + pathPrefix + timestampA);
-                appB.navigateTo(appBBase + pathPrefix + timestampB);
+                appAPage.navigateTo(appA + pathPrefix + timestampA);
+                appBPage.navigateTo(appB + pathPrefix + timestampB);
 
                 int step = 0;
-                while (appA.hasPendingCommands()) {
+                while (appAPage.hasPendingCommands()) {
                     step++;
-                    String member = appA.oldestCommandMember();
+                    String member = appAPage.oldestCommandMember();
 
-                    appA.replayNext();
-                    if ("Failed".equalsIgnoreCase(appA.oldestReplayState())) {
+                    appAPage.replayNext();
+                    if ("Failed".equalsIgnoreCase(appAPage.oldestReplayState())) {
                         System.out.println("[step " + step + "] " + member + " — replay FAILED on app-a");
                         return 1;
                     }
-                    appB.replayNext();
-                    if ("Failed".equalsIgnoreCase(appB.oldestReplayState())) {
+                    appBPage.replayNext();
+                    if ("Failed".equalsIgnoreCase(appBPage.oldestReplayState())) {
                         System.out.println("[step " + step + "] " + member + " — replay FAILED on app-b");
                         return 1;
                     }

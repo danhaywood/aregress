@@ -6,6 +6,10 @@ Drives two Causeway app instances via Playwright, replaying recorded commands st
 and after each command queries the `cfct` database-comparison tool's automation REST API —
 stopping on the first detected divergence.
 
+Built as a Spring Boot 4.x CLI (no web server): Picocli still provides the command-line, and
+configuration can come from `application.yml` / environment variables / system properties as well
+as CLI options.
+
 ## Prerequisites
 
 - Java 17+
@@ -22,7 +26,7 @@ mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="in
 mvn package
 ```
 
-Produces `target/aregress-1.0-SNAPSHOT.jar` (fat JAR, ~190MB).
+Produces `target/aregress-1.0-SNAPSHOT.jar` (a Spring Boot executable jar, ~200MB).
 
 ## Usage
 
@@ -110,6 +114,26 @@ Each step is reported with the command's member name. Two failure modes are dist
 - `FAIL — database divergence: <tables>` — the databases diverged after replay (the differing table(s) are named).
 
 Exits `0` when all commands replay and compare cleanly, `1` on the first regression (replay failure or database divergence), and `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.).
+
+## Configuration
+
+Non-secret settings have built-in defaults (a bundled `application.yml`) and can be overridden the
+Spring Boot way — by environment variables, system properties, or an external `application.yml` —
+with CLI options taking highest precedence:
+
+**CLI option → system property → environment variable → bundled `application.yml` → built-in default**
+
+| Config key (`aregress.*`)   | CLI option        | Default |
+|-----------------------------|-------------------|---------|
+| `aregress.app-a`            | `--app-a`         | `http://localhost:8080` |
+| `aregress.app-b`            | `--app-b`         | `http://localhost:9090` |
+| `aregress.cfct`             | `--cfct`          | `http://localhost:10010` |
+| `aregress.cfct-username`    | `--cfct-username` | `robot` |
+
+Examples (all set the cfct base URL): `--cfct https://host:10010` · `-Daregress.cfct=https://host:10010` · `AREGRESS_CFCT=https://host:10010`.
+
+Secrets (`--password`, `--cfct-password`) are **only** accepted via the CLI option or interactive
+prompt — they are never read from `application.yml`.
 
 ## Before running
 

@@ -1,0 +1,15 @@
+spring:
+  main:
+    banner-mode: "off"          # quoted so YAML doesn't coerce to boolean false
+    web-application-type: none  # CLI app, no web server
+
+logging:
+  level:
+    root: warn                  # keep stdout clean for the [step N] output
+
+# Externalized defaults; override via env vars / system properties, or per-run via CLI options.
+aregress:
+  app-a: http://localhost:8080
+  app-b: http://localhost:9090
+  cfct: http://localhost:10010
+  cfct-username: robot
