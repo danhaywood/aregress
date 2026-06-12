@@ -26,5 +26,5 @@
 
 - [x] 5.1 Update `README.md`: cfct is now a REST endpoint (`--cfct` base URL, `--cfct-username`/`--cfct-password` Basic Auth); note cfct no longer requires a browser.
 - [x] 5.2 `mvn package` and verify the fat JAR builds.
-- [ ] 5.3 Happy-path smoke test against the live endpoint: full suite replays, `All N steps passed.`, exit 0 — and confirm each step is fast (footprint, not full-DB). BLOCKED: awaiting cfct shipping the agreed contract (no-op→`200`; `differingTables`/`comparedTables`). Until then a navigation command returns `500` and aregress exits 2.
-- [ ] 5.4 Failure-case smoke test: induce a divergence (or stop the fixture per the cfct README) and verify exit 1 with the differing table reported. BLOCKED (same as 5.3).
+- [ ] 5.3 Happy-path smoke test (full suite replays, `All N steps passed.`, exit 0): needs a clean **in-sync re-prime** (matching command list AND matching starting databases). The apps are currently desynced from earlier exploration, so `updateUsername` diverges at step 1. Each step is now a fast REST call (no full-DB compare). — owner action.
+- [x] 5.4 Failure-case smoke test: ran against the live REST endpoint — `[step 1] updateUsername replayed... FAIL — database divergence: isisExtSecman.ApplicationUser (1 differing row(s))`, exit 1. Validates the new contract end-to-end: replay both → single `GET comparison.json` → `hasDifferences:true` with `differingTables` parsed → divergence reported.
