@@ -20,7 +20,8 @@
 ## 5. Build & verify
 
 - [x] 5.1 `mvn package`; confirm the jar builds and `--help` is unchanged.
-- [ ] 5.2/5.3/5.4 BLOCKED (live): need app-a + app-b up and re-primed in sync. Build + --help + config binding verified; the happy-path confirmation, the retry-on-lag, and the exhaustion-aborts-exit-2 paths await a clean in-sync run.
+- [x] 5.2 Verified against live cfct on a clean in-sync DB: a full `--file` run replayed steps 1–17 `OK` (footprint + no-footprint), the guard confirming cfct's reported `command.interactionId` matched each just-replayed command on the first attempt (case-insensitive: Causeway lowercase vs cfct upper-case) before evaluating the comparison — no spurious retries/aborts, behaviour otherwise unchanged. (Stopped at step 18 `updateLocale` on the known genuine app-b replay-failure regression, exit 1 — unrelated to the guard.)
+- [~] 5.3 / 5.4 (retry-on-lag, exhaustion→exit 2): not triggered — no race/lag occurred (cfct caught up on the first attempt every step). The retry/exhaustion branches are simple and verified by construction; deterministically inducing a real lag would need fault injection on cfct. Can force-exercise on request.
 
 ## 6. Docs
 
