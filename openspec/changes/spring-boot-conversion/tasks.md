@@ -19,8 +19,8 @@
 
 - [x] 4.1 `mvn package`; verify the executable jar runs via `java -jar` and the `aregress` launcher.
 - [x] 4.2 Verify behaviour is preserved: `--help`, the `--timestamp`/`--file` group, usage errors exit `2`, interactive `--password` still prompts, and `[step N]` output is clean (no banner/log noise).
-- [ ] 4.3 Verify config precedence: a default run uses bundled defaults; an env/system-property override is honoured; a CLI option overrides config.
-- [ ] 4.4 Smoke-test a real run (replay/compare, or `--file`) to confirm end-to-end behaviour and exit codes are unchanged.
+- [x] 4.3 Verified config precedence on live runs: `--cfct http://localhost:19999` won over config (error named 19999); `AREGRESS_CFCT=...19998` env var won when no --cfct (error named 19998); app-a/app-b came from config defaults. CLI > env/property > application.yml > default.
+- [x] 4.4 Smoke-tested a real multi-step run under Spring Boot (live cfct): clean OK steps (incl. no-footprint), real cfct REST comparisons, and the genuine updateLocale/app-b regression caught with exit 1 — behaviour and exit codes unchanged from the pre-conversion build.
 
 ## 5. Docs
 
