@@ -173,6 +173,15 @@ public class ReplayCommand implements Callable<Integer> {
                         return 2;
                     }
 
+                    // Background commands (e.g. an InvoiceRun's cronjob-spawned work) leave the footprint
+                    // unsettled — pause before judging divergence and let the operator resume later.
+                    int pendingBackground = result.pendingBackgroundCommands();
+                    if (pendingBackground > 0) {
+                        System.out.println("[step " + step + "] " + member + " — paused: " + pendingBackground
+                                + " background command(s) pending; re-run aregress once they have completed");
+                        return 3;
+                    }
+
                     if (result.hasDifferences) {
                         System.out.println("[step " + step + "] " + member + " replayed... FAIL"
                                 + " — database divergence: " + result.describeDifferences());

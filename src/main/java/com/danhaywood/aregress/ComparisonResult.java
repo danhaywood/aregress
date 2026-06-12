@@ -26,10 +26,21 @@ public class ComparisonResult {
     public List<Table> comparedTables;
     /** The command this comparison is for — used to confirm it matches the command just replayed. */
     public Command command;
+    /** Background commands (e.g. cronjob-spawned) outstanding for this command, if any. */
+    public BackgroundCommands backgroundCommands;
 
     public static class Command {
         public String interactionId;
         public String timestamp;
+    }
+
+    public static class BackgroundCommands {
+        public int pending;
+    }
+
+    /** Number of pending background commands; 0 when cfct omits the block. */
+    public int pendingBackgroundCommands() {
+        return backgroundCommands == null ? 0 : backgroundCommands.pending;
     }
 
     public static class Table {

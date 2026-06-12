@@ -113,7 +113,7 @@ Each step is reported with the command's member name. Two failure modes are dist
 - `replay FAILED on app-a/-b` — the command failed to execute on one of the Causeway instances.
 - `FAIL — database divergence: <tables>` — the databases diverged after replay (the differing table(s) are named).
 
-Exits `0` when all commands replay and compare cleanly, `1` on the first regression (replay failure or database divergence), and `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.).
+Exits `0` when all commands replay and compare cleanly, `1` on the first regression (replay failure or database divergence), `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.), and `3` when a command has spawned **background commands** that are still pending — a pause, not a failure: wait for them to complete, then re-run aregress and it resumes from the still-pending commands.
 
 ## Configuration
 
