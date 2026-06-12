@@ -1,4 +1,16 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: Navigate all three pages on startup`
+- TO: `### Requirement: Open the app pages and cfct client on startup`
+
 ## MODIFIED Requirements
+
+### Requirement: Open the app pages and cfct client on startup
+The tool SHALL open browser pages for app-a and app-b at their CommandReplayManager URLs, and SHALL configure an HTTP client for the cfct automation REST API, before beginning the replay loop. (cfct is accessed over HTTP, not driven via a browser page.)
+
+#### Scenario: Startup
+- **WHEN** the tool starts
+- **THEN** browser pages are opened for app-a (`{app-a-base}/wicket/entity/isis.ext.commandLog.CommandReplayManager:{timestamp}`) and app-b (the equivalent URL with `{app-b-base}`), and a cfct REST client is configured for `{cfct-base}`
 
 ### Requirement: Compare in cfct and check for differences
 After both replays succeed, the tool SHALL obtain the comparison from cfct's automation REST API and determine whether the databases have diverged. The tool SHALL `GET {cfct}/api/automation/comparison.json` (HTTP Basic Auth); the endpoint refreshes the footprint comparison for the newest successful command server-side before returning it. The tool SHALL parse the returned JSON, whose top-level `hasDifferences` flag is the divergence signal (with `differingTables` and `comparedTables` providing detail).

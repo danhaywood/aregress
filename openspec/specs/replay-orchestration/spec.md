@@ -6,19 +6,12 @@ The core loop: replay recorded commands on app-a and app-b in lockstep, compare 
 
 ## Requirements
 
-### Requirement: Navigate all three pages on startup
-The tool SHALL navigate app-a, app-b, and cfct to their respective URLs before beginning the replay loop.
+### Requirement: Open the app pages and cfct client on startup
+The tool SHALL open browser pages for app-a and app-b at their CommandReplayManager URLs, and SHALL configure an HTTP client for the cfct automation REST API, before beginning the replay loop. (cfct is accessed over HTTP, not driven via a browser page.)
 
-#### Scenario: Startup navigation
+#### Scenario: Startup
 - **WHEN** the tool starts
-- **THEN** three browser pages are opened: app-a at `{app-a-base}/wicket/entity/isis.ext.commandLog.CommandReplayManager:{timestamp}`, app-b at the equivalent URL with `{app-b-base}`, and cfct at `{cfct-base}`
-
-### Requirement: Connect cfct to the databases on startup
-Because the cfct refresh and compare controls are disabled until a database connection is established, the tool SHALL perform the cfct connection step once before the replay loop.
-
-#### Scenario: cfct connection
-- **WHEN** the tool starts and cfct shows its connection dialog
-- **THEN** the tool submits the connection credentials (`login-password` / `login-submit`) and proceeds only once `command-filter-refresh` is enabled
+- **THEN** browser pages are opened for app-a (`{app-a-base}/wicket/entity/isis.ext.commandLog.CommandReplayManager:{timestamp}`) and app-b (the equivalent URL with `{app-b-base}`), and a cfct REST client is configured for `{cfct-base}`
 
 ### Requirement: Loop while pending commands remain
 The tool SHALL repeat the replay-compare cycle while app-a's pending-commands collection is non-empty. (The "Replay Or Retry Next" control is a Wicket AJAX anchor with no disabled state, so the pending collection — not button state — is the authoritative signal.)
@@ -46,17 +39,23 @@ After replaying on each app, the tool SHALL check the replayed command's Causewa
 - **THEN** the tool logs `[step N] <command> — replay FAILED on app-a` (or `app-b`) and exits with code 1
 
 ### Requirement: Compare in cfct and check for differences
-After both replays succeed, the tool SHALL drive cfct to compare the databases and determine whether they have diverged: refresh, select all tables, click compare, wait for completion, then click Download and parse the exported JSON. The top-level `hasDifferences` flag of that JSON is the divergence signal.
-
-> NOTE (delivered scope): the comparison is a **full-database** compare (cfct's per-command *footprint* auto-selection does not trigger under headless automation). This is correct but slow; the per-command footprint compare is deferred to a separate change that adds a cfct REST endpoint. Detection is via the downloaded JSON rather than scraping the Vaadin results tabs, which is more robust.
+After both replays succeed, the tool SHALL obtain the comparison from cfct's automation REST API and determine whether the databases have diverged. The tool SHALL `GET {cfct}/api/automation/comparison.json` (HTTP Basic Auth); the endpoint refreshes the footprint comparison for the newest successful command server-side before returning it. The tool SHALL parse the returned JSON, whose top-level `hasDifferences` flag is the divergence signal (with `differingTables` and `comparedTables` providing detail).
 
 #### Scenario: No differences — pass
-- **WHEN** the downloaded comparison JSON reports `hasDifferences: false`
+- **WHEN** the comparison request returns `200` and the JSON reports `hasDifferences: false`
 - **THEN** the tool logs `[step N] <command> replayed... OK` and continues to the next iteration
 
+#### Scenario: No-op command with no footprint
+- **WHEN** the just-replayed command touched no business tables and the comparison returns `200` with `hasDifferences: false` and an empty `comparedTables`
+- **THEN** the tool logs `[step N] <command> replayed... OK (no footprint)` and continues to the next iteration
+
 #### Scenario: Differences detected — fail
-- **WHEN** the downloaded comparison JSON reports `hasDifferences: true`
+- **WHEN** the comparison JSON reports `hasDifferences: true`
 - **THEN** the tool logs `[step N] <command> replayed... FAIL — database divergence: <differing tables>` and exits with code 1
+
+#### Scenario: Automation API error
+- **WHEN** the comparison request returns a non-`200` response
+- **THEN** the tool SHALL abort with a clear error distinct from a data divergence and exit non-zero
 
 ### Requirement: Log progress to stdout
 The tool SHALL log each step result and a final summary to stdout.
