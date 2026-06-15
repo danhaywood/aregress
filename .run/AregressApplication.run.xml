@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="AregressApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+    <module name="aregress" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.danhaywood.aregress.AregressApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+  <configuration default="false" name="AregressApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+    <module name="aregress" />
+    <option name="PROGRAM_PARAMETERS" value="--file $PROJECT_DIR$/../../../../gitlab/ecpnv.devops/apps/estatio/regression-test/main/episodes/20260611/src/main/resources/020-fixed-asset/FixedAsset.01.2026-06-15T12_07_11.153Z.yml --username estatio-admin --password feli3128 --cfct-password secret" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.danhaywood.aregress.AregressApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

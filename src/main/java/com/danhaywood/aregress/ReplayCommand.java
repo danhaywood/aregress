@@ -63,8 +63,9 @@ public class ReplayCommand implements Callable<Integer> {
     @Option(names = "--cfct-username", description = "Basic-Auth user for the cfct automation API (overrides config aregress.cfct-username)")
     private String cfctUsername;
 
-    @Option(names = "--username", required = true,
-            description = "Username for the Causeway app login (used for both app-a and app-b)")
+    @Option(names = "--username",
+            description = "Username for the Causeway app login (used for both app-a and app-b); "
+                    + "defaults to config aregress.username (estatio-admin)")
     private String username;
 
     @Option(names = "--password", required = true, interactive = true, arity = "0..1",
@@ -86,6 +87,11 @@ public class ReplayCommand implements Callable<Integer> {
         String appB = appBBase != null ? appBBase : props.getAppB();
         String cfctUrl = cfctBase != null ? cfctBase : props.getCfct();
         String cfctUser = cfctUsername != null ? cfctUsername : props.getCfctUsername();
+        String user = username != null ? username : props.getUsername();
+        if (user == null || user.isBlank()) {
+            System.out.println("no username: pass --username or set aregress.username");
+            return 2;
+        }
 
         // Resolve each app's replay timestamp: either --timestamp, or — for --file — by importing the
         // recording into each app and using the baseline timestamp it returns.
@@ -93,8 +99,8 @@ public class ReplayCommand implements Callable<Integer> {
         String timestampB;
         if (replayTarget.file != null) {
             try {
-                timestampA = new AppImportClient(appA, username, password).importRecording(replayTarget.file);
-                timestampB = new AppImportClient(appB, username, password).importRecording(replayTarget.file);
+                timestampA = new AppImportClient(appA, user, password).importRecording(replayTarget.file);
+                timestampB = new AppImportClient(appB, user, password).importRecording(replayTarget.file);
             } catch (AppImportClient.ImportException e) {
                 System.out.println("import failed: " + e.getMessage());
                 return 2;
@@ -110,8 +116,8 @@ public class ReplayCommand implements Callable<Integer> {
             try (Browser browser = playwright.chromium().launch(launchOptions)) {
                 BrowserContext context = browser.newContext();
 
-                CausewayReplayPage appAPage = new CausewayReplayPage(context.newPage(), username, password);
-                CausewayReplayPage appBPage = new CausewayReplayPage(context.newPage(), username, password);
+                CausewayReplayPage appAPage = new CausewayReplayPage(context.newPage(), user, password);
+                CausewayReplayPage appBPage = new CausewayReplayPage(context.newPage(), user, password);
                 CfctClient cfct = new CfctClient(cfctUrl, cfctUser, cfctPassword);
 
                 appAPage.navigateTo(appA + pathPrefix + timestampA);

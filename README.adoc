@@ -58,11 +58,6 @@ The following parameter options are required:
 +
 A recording (exported by `CommandExportManager`) to import into both apps via REST.
 
-`--username`
-+
-Username for the Causeway app login used for both app-a and app-b.
-Also used as the Basic-Auth user for uploading the file import.
-
 * `--password`
 +
 Password for the Causeway app login.
@@ -74,6 +69,11 @@ HTTP Basic-Auth secret for the `cfct` tool's REST API.
 Either provide the password as an argument, or leave blank (in which case will be prompted for interactively)
 
 The following parameter options are not required, have defaults:
+
+`--username`
++
+Username for the Causeway app login (used for both app-a and app-b), and the Basic-Auth user for uploading the file import.
+Defaults to `estatio-admin` (config `aregress.username`).
 
 * `--app-a`
 +
@@ -103,12 +103,12 @@ Defaults to `false`, ie runs in headed mode.
 === Example
 
 Headed (default) — browser windows visible for failure diagnosis.
-Prompts for the two passwords (not echoed):
+Username defaults to `estatio-admin`; prompts for the two passwords (not echoed):
 
 [source,bash]
 ----
 ./aregress.sh -file ~/Downloads/ApplicationUser.2026-06-11T12_23_56.614Z.yml \
-  --username estatio-admin --password --cfct-password
+  --password --cfct-password
 ----
 
 Headless — for CI (pass secrets as args / from a secret store):
@@ -168,6 +168,7 @@ aregress:
   app-a: http://localhost:8080
   app-b: http://localhost:9090
   cfct: http://localhost:10010
+  username: estatio-admin
   cfct-username: robot
   compare:
     max-attempts: 5
@@ -182,8 +183,15 @@ with exit `2` rather than trusting a stale comparison.
 
 == Before running
 
-. Get the recording into both apps — either import it out-of-band and pass `--timestamp`, or pass `--file <recording>` and let aregress import it via each app's import endpoint (see link:docs/app-import-endpoint.md[docs/app-import-endpoint.md])
-. Ensure `cfct` is running with its automation REST API enabled and connected to both databases
+. run reference (port 8080), candidate (9090) and `cfct` (port 10010)
+. Obtain the fully qualified file name of the recording.md[docs/app-import-endpoint.md])
+. Kick off the tool:
++
+[source,bash]
+----
+./aregress.sh --file <recording>
+----
+
 
 == CI setup
 
@@ -193,5 +201,5 @@ with exit `2` rather than trusting a stale comparison.
   run: mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install chromium"
 
 - name: Run regression
-  run: ./aregress --timestamp $TIMESTAMP --headless
+  run: ./aregress.sh --timestamp $TIMESTAMP --headless
 ----

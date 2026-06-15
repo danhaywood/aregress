@@ -23,6 +23,8 @@ public class AregressProperties {
     private String cfct = "http://localhost:10010";
     /** Username for HTTP Basic Auth against the cfct automation API. */
     private String cfctUsername = "robot";
+    /** Username for the Causeway app login (used for both apps) and for the import Basic-Auth. */
+    private String username = "estatio-admin";
     /** Tuning for the per-step comparison race-guard. */
     private Compare compare = new Compare();
 
@@ -88,5 +90,13 @@ public class AregressProperties {
 
     public void setCfctUsername(String cfctUsername) {
         this.cfctUsername = cfctUsername;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
     }
 }
