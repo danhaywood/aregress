@@ -32,19 +32,19 @@ Produces `target/aregress-1.0-SNAPSHOT.jar` (a Spring Boot executable jar, ~200M
 
 == Usage
 
-The `aregress` shell script at the repo root wraps the JAR and checks
+The `aregress.sh` shell script at the repo root wraps the JAR and checks
 that Java 17+ is on `PATH` before running:
 
 [source,bash]
 ----
-./aregress --file <file> [options]
+./aregress.sh --file <file> [options]
 ----
 
 Or invoke the JAR directly:
 
 [source,bash]
 ----
-java -jar target/aregress-1.0-SNAPSHOT.jar --file <file> [options]
+java -jar target/aregress.sh-1.0-SNAPSHOT.jar --file <file> [options]
 ----
 
 NOTE: If your shell's `java` is older than 17, set `JAVA_HOME` first, eg using sdkman.
@@ -107,7 +107,7 @@ Prompts for the two passwords (not echoed):
 
 [source,bash]
 ----
-./aregress -file ~/Downloads/ApplicationUser.2026-06-11T12_23_56.614Z.yml \
+./aregress.sh -file ~/Downloads/ApplicationUser.2026-06-11T12_23_56.614Z.yml \
   --username estatio-admin --password --cfct-password
 ----
 
@@ -115,7 +115,7 @@ Headless — for CI (pass secrets as args / from a secret store):
 
 [source,bash]
 ----
-./aregress -file /tmp/replay.yml \
+./aregress.sh -file /tmp/replay.yml \
   --username "$AREGRESS_USER" --password "$AREGRESS_PASS" --cfct-password "$CFCT_PASS" \
   --headless
 ----
@@ -149,7 +149,7 @@ Exits code:
 * `2` on a cfct automation-API error (unreachable endpoint, auth failure, etc.), and
 * `3` when a command has spawned *background commands* that are still pending.
 +
-This does not represent a failure, but does require that the end-user wait for them to complete, then re-run `aregress`.
+This does not represent a failure, but does require that the end-user wait for them to complete, then re-run `aregress.sh`.
 It will resume with the still-pending commands.
 
 
@@ -174,7 +174,7 @@ aregress:
     retry-delay: "1s"
 ----
 
-The `aregress.compare.*` config properties are to manage the race condition that, after replaying a command, `aregress` re-queries `cfct` before the comparison is ready.
+The `aregress.compare.*` config properties are to manage the race condition that, after replaying a command, `aregress.sh` re-queries `cfct` before the comparison is ready.
 It detects this by checking the `command.interactionId` in `cfct`'s response.
 If the command is never confirmed within the attempts, the run aborts
 with exit `2` rather than trusting a stale comparison.

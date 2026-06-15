@@ -6,7 +6,7 @@ JAR="$SCRIPT_DIR/target/aregress-1.0-SNAPSHOT.jar"
 
 if [[ ! -f "$JAR" ]]; then
     echo "error: JAR not found at $JAR" >&2
-    echo "       Run 'mvn package' first." >&2
+    echo "       Run 'mvnd package' first." >&2
     exit 1
 fi
 
