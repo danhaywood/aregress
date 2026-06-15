@@ -3,9 +3,7 @@
 ## Purpose
 
 The Picocli-based command-line entry point for `aregress`: argument parsing, browser lifecycle, and exit codes. It turns a single invocation into a configured run against two Causeway app instances and a `cfct` comparison tool.
-
 ## Requirements
-
 ### Requirement: Accept a replay target (timestamp or file)
 The CLI SHALL accept exactly one of `--timestamp <ts>` or `--file <path>`. `--timestamp` names an already-imported baseline; `--file` is a recording the tool imports into both apps (see the `command-import` capability), using each app's returned baseline timestamp. Providing neither, or both, SHALL be a usage error.
 
@@ -26,7 +24,7 @@ The CLI SHALL accept exactly one of `--timestamp <ts>` or `--file <path>`. `--ti
 - **THEN** the tool SHALL exit with a non-zero code and print a usage error
 
 ### Requirement: Accept required credentials
-The CLI SHALL accept the credentials needed to authenticate against the apps: `--username` and `--password` for the Causeway form login (used for both app-a and app-b), and `--cfct-username` and `--cfct-password` for HTTP Basic Auth against cfct's automation REST API. The `--cfct` option SHALL be the base URL of that REST API. The password options MAY be supplied inline or prompted for interactively when given without a value.
+The CLI SHALL accept the credentials needed to authenticate against the apps: `--username` and `--password` for the Causeway form login (used for both app-a and app-b), and `--cfct-username` and `--cfct-password` for HTTP Basic Auth against cfct's automation REST API. The `--cfct` option SHALL be the base URL of that REST API. The password options MAY be supplied inline or prompted for interactively when given without a value. `--username` MAY be omitted, in which case it falls back to the configured value (`aregress.username`, default `estatio-admin`); the passwords SHALL NOT be bound from configuration.
 
 #### Scenario: Credentials supplied inline
 - **WHEN** the user passes `--username`, `--password <value>`, `--cfct-username <value>` and `--cfct-password <value>`
@@ -36,8 +34,16 @@ The CLI SHALL accept the credentials needed to authenticate against the apps: `-
 - **WHEN** the user passes `--password` (or `--cfct-password`) with no value
 - **THEN** the tool prompts for the password on the console without echoing it
 
+#### Scenario: Username omitted — configured default used
+- **WHEN** the user omits `--username`
+- **THEN** the tool uses the configured `aregress.username` value (default `estatio-admin`) as the Causeway login user for both apps and as the import Basic-Auth user
+
+#### Scenario: Username supplied — CLI wins over configuration
+- **WHEN** the user passes `--username someone-else`
+- **THEN** the tool uses `someone-else` instead of the configured value
+
 #### Scenario: Required credential omitted
-- **WHEN** a required credential option is omitted entirely
+- **WHEN** a required credential option (a password) is omitted entirely
 - **THEN** the tool SHALL exit with a non-zero code and print a usage error
 
 ### Requirement: Accept optional URL overrides
@@ -72,3 +78,4 @@ The CLI SHALL exit 0 on full success and non-zero on any failure or argument err
 #### Scenario: Mismatch detected
 - **WHEN** cfct shows differences after any step
 - **THEN** the tool exits with code 1
+
