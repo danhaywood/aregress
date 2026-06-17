@@ -27,6 +27,8 @@ public class AregressProperties {
     private String username = "estatio-admin";
     /** Tuning for the per-step comparison race-guard. */
     private Compare compare = new Compare();
+    /** Toggle for the pre-replay metamodel rebuild of "navigate to one of" commands. */
+    private Rebuild rebuild = new Rebuild();
 
     /** Race-guard tuning: how hard to retry until cfct's reported command matches the replayed one. */
     public static class Compare {
@@ -52,12 +54,38 @@ public class AregressProperties {
         }
     }
 
+    /**
+     * Whether to force a metamodel rebuild of a "navigate to one of" command's target object before
+     * replaying it. An operational kill-switch (default on) so the behaviour can be retired without a
+     * code change if Causeway is fixed to make it unnecessary.
+     */
+    public static class Rebuild {
+        /** Enable the pre-replay metamodel rebuild for navigate-to-one-of commands. */
+        private boolean enabled = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
     public Compare getCompare() {
         return compare;
     }
 
     public void setCompare(Compare compare) {
         this.compare = compare;
+    }
+
+    public Rebuild getRebuild() {
+        return rebuild;
+    }
+
+    public void setRebuild(Rebuild rebuild) {
+        this.rebuild = rebuild;
     }
 
     public String getAppA() {

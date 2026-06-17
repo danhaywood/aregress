@@ -120,6 +120,11 @@ public class ReplayCommand implements Callable<Integer> {
                 CausewayReplayPage appBPage = new CausewayReplayPage(context.newPage(), user, password);
                 CfctClient cfct = new CfctClient(cfctUrl, cfctUser, cfctPassword);
 
+                // Pre-replay metamodel rebuild for "navigate to one of" commands (kill-switch via config).
+                boolean rebuildEnabled = props.getRebuild().isEnabled();
+                AppRebuildClient rebuildA = rebuildEnabled ? new AppRebuildClient(appA, user, password) : null;
+                AppRebuildClient rebuildB = rebuildEnabled ? new AppRebuildClient(appB, user, password) : null;
+
                 appAPage.navigateTo(appA + pathPrefix + timestampA);
                 appBPage.navigateTo(appB + pathPrefix + timestampB);
 
@@ -130,10 +135,41 @@ public class ReplayCommand implements Callable<Integer> {
                     // The command about to be replayed — used to confirm the cfct comparison is for it.
                     String expectedId = appAPage.oldestCommandInteractionId();
 
+                    // For "navigate to one of" commands, the choices resolve against the target object's
+                    // metamodel; rebuild it on each app immediately before that app's replay so a stale
+                    // metamodel can't cause a spurious failure or false divergence.
+                    String rebuildTarget = null;
+                    if (rebuildEnabled && appAPage.isOldestCommandNavigateToOneOf()) {
+                        rebuildTarget = appAPage.oldestCommandTargetBookmark();
+                        if (rebuildTarget == null) {
+                            System.out.println("[step " + step + "] " + member
+                                    + " — navigate-to-one-of command but no target bookmark found to rebuild");
+                            return 2;
+                        }
+                    }
+
+                    if (rebuildTarget != null) {
+                        try {
+                            rebuildA.rebuild(rebuildTarget);
+                        } catch (AppRebuildClient.RebuildException e) {
+                            System.out.println("[step " + step + "] " + member
+                                    + " — metamodel rebuild on app-a failed: " + e.getMessage());
+                            return 2;
+                        }
+                    }
                     appAPage.replayNext();
                     if ("Failed".equalsIgnoreCase(appAPage.oldestReplayState())) {
                         System.out.println("[step " + step + "] " + member + " — replay FAILED on app-a");
                         return 1;
+                    }
+                    if (rebuildTarget != null) {
+                        try {
+                            rebuildB.rebuild(rebuildTarget);
+                        } catch (AppRebuildClient.RebuildException e) {
+                            System.out.println("[step " + step + "] " + member
+                                    + " — metamodel rebuild on app-b failed: " + e.getMessage());
+                            return 2;
+                        }
                     }
                     appBPage.replayNext();
                     if ("Failed".equalsIgnoreCase(appBPage.oldestReplayState())) {

@@ -17,3 +17,5 @@ aregress:
   compare:
     max-attempts: 5       # cfct queries per step while waiting for the reported command to match
     retry-delay: 1s       # delay between those attempts
+  rebuild:
+    enabled: true         # rebuild a navigate-to-one-of command's target metamodel before replay; set false to disable
